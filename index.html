@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transaction List</title>
+<style>
+    table {
+        border-collapse: collapse;
+        width: 100%;
+    }
+    th, td {
+        border: 1px solid #dddddd;
+        text-align: left;
+        padding: 8px;
+    }
+    th {
+        background-color: #f2f2f2;
+    }
+</style>
+</head>
+<body>
+
+<form id="addressForm">
+    <label for="addressInput">Enter Ethereum Address:</label>
+    <input type="text" id="addressInput" name="addressInput">
+    <button type="submit">Submit</button>
+</form>
+
+<table id="transactionTable">
+    <thead>
+        <tr>
+            <th>From</th>
+            <th>To</th>
+            <th>Decoded Input</th>
+            <th>Value</th>
+            <th>Timestamp</th>
+            <th>Contract Deployed Event</th>
+        </tr>
+    </thead>
+    <tbody id="transactionData"></tbody>
+</table>
+
+<script>
+    // Function to fetch transaction data
+    function fetchTransactionData(address) {
+        fetch(`https://api.scan.pulsechain.com/api?module=account&action=txlist&address=${address}&sort=asc`)
+        .then(response => response.json())
+        .then(data => {
+            // Parse JSON response and generate table rows
+            const transactions = data.result;
+            const tableBody = document.getElementById('transactionData');
+            
+            tableBody.innerHTML = ''; // Clear existing data
+            
+            transactions.forEach(transaction => {
+                const row = document.createElement('tr');
+                if (!transaction.to) {
+                    row.innerHTML = `
+                        <td>${transaction.from}</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td>Yes</td>
+                    `;
+                } else {
+                    row.innerHTML = `
+                        <td>${transaction.from}</td>
+                        <td>${transaction.to}</td>
+                        <td>${transaction.input.substring(0, 10)}</td>
+                        <td>${transaction.value}</td>
+                        <td>${new Date(transaction.timeStamp * 1000).toLocaleString()}</td>
+                        <td>No</td>
+                    `;
+                }
+                tableBody.appendChild(row);
+            });
+        })
+        .catch(error => console.error('Error fetching data:', error));
+    }
+
+    // Form submission handler
+    document.getElementById('addressForm').addEventListener('submit', function(event) {
+        event.preventDefault(); // Prevent default form submission
+        const address = document.getElementById('addressInput').value;
+        fetchTransactionData(address);
+    });
+</script>
+
+</body>
+</html>
