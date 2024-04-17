@@ -17,6 +17,13 @@
     th {
         background-color: #f2f2f2;
     }
+    .loading-bar {
+        height: 4px;
+        width: 0%;
+        background-color: #4CAF50;
+        margin-top: 20px;
+        transition: width 0.3s;
+    }
 </style>
 </head>
 <body>
@@ -27,6 +34,8 @@
     <button type="submit">Submit</button>
 </form>
 
+<div class="loading-bar" id="loadingBar"></div>
+
 <table id="transactionTable">
     <thead>
         <tr>
@@ -36,26 +45,42 @@
             <th>Value</th>
             <th>Timestamp</th>
             <th>Contract Deployed Event</th>
+            <th>Contract</th>
+            <th>Name</th>
+            <th>Symbol</th>
+            <th>Total Supply</th>
         </tr>
     </thead>
     <tbody id="transactionData"></tbody>
 </table>
 
 <script>
+    const loadingBar = document.getElementById('loadingBar');
+    const tableBody = document.getElementById('transactionData');
+
+    // Function to update loading progress
+    function updateLoadingProgress(progress) {
+        loadingBar.style.width = progress + '%';
+    }
+
     // Function to fetch transaction data
     function fetchTransactionData(address) {
+        updateLoadingProgress(0); // Reset loading progress
+
         fetch(`https://api.scan.pulsechain.com/api?module=account&action=txlist&address=${address}&sort=asc`)
         .then(response => response.json())
         .then(data => {
+            updateLoadingProgress(100); // Set loading progress to 100%
+
             // Parse JSON response and generate table rows
             const transactions = data.result;
-            const tableBody = document.getElementById('transactionData');
             
-            tableBody.innerHTML = ''; // Clear existing data
-            
-            transactions.forEach(transaction => {
+            transactions.forEach(async transaction => {
                 const row = document.createElement('tr');
-                if (!transaction.to) {
+                const isContractDeployed = !transaction.to;
+                const contractAddress = isContractDeployed ? transaction.contractAddress : '';
+                if (isContractDeployed) {
+                    const tokenInfo = await fetchTokenInfo(contractAddress);
                     row.innerHTML = `
                         <td>${transaction.from}</td>
                         <td></td>
@@ -63,6 +88,10 @@
                         <td></td>
                         <td></td>
                         <td>Yes</td>
+                        <td>${contractAddress}</td>
+                        <td>${tokenInfo.name}</td>
+                        <td>${tokenInfo.symbol}</td>
+                        <td>${tokenInfo.totalSupply}</td>
                     `;
                 } else {
                     row.innerHTML = `
@@ -72,12 +101,30 @@
                         <td>${transaction.value}</td>
                         <td>${new Date(transaction.timeStamp * 1000).toLocaleString()}</td>
                         <td>No</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
                     `;
                 }
                 tableBody.appendChild(row);
             });
         })
-        .catch(error => console.error('Error fetching data:', error));
+        .catch(error => {
+            console.error('Error fetching data:', error);
+            updateLoadingProgress(100); // Set loading progress to 100% in case of error
+        });
+    }
+
+    // Function to fetch token info
+    async function fetchTokenInfo(contractAddress) {
+        const response = await fetch(`https://api.scan.pulsechain.com/api?module=token&action=getToken&contractaddress=${contractAddress}`);
+        const data = await response.json();
+        return {
+            name: data.result.name,
+            symbol: data.result.symbol,
+            totalSupply: data.result.totalSupply
+        };
     }
 
     // Form submission handler
