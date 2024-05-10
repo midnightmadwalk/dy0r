@@ -3,137 +3,48 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Transaction List</title>
-<style>
-    table {
-        border-collapse: collapse;
-        width: 100%;
-    }
-    th, td {
-        border: 1px solid #dddddd;
-        text-align: left;
-        padding: 8px;
-    }
-    th {
-        background-color: #f2f2f2;
-    }
-    .loading-bar {
-        height: 4px;
-        width: 0%;
-        background-color: #4CAF50;
-        margin-top: 20px;
-        transition: width 0.3s;
-    }
-</style>
+<title>API JSON Response</title>
 </head>
 <body>
+  <h2>Select Chain and Enter Contract</h2>
+  <div>
+    <label for="chain">Select Chain:</label>
+    <select id="chain">
+      <option value="">Pulsechain</option>
+      <option value="/eth">Ethereum</option>
+      <option value="/basechain">Basechain</option>
+    </select>
+  </div>
+  <div>
+    <label for="contract">Enter Contract:</label>
+    <input type="text" id="contract">
+  </div>
+  <button onclick="fetchData()">Fetch Data</button>
+  <div id="response"></div>
 
-<form id="addressForm">
-    <label for="addressInput">Enter Ethereum Address:</label>
-    <input type="text" id="addressInput" name="addressInput">
-    <button type="submit">Submit</button>
-</form>
+  <script>
+    function fetchData() {
+      var chain = document.getElementById('chain').value;
+      var contract = document.getElementById('contract').value;
+      var apiUrl = `https://pulseapi.solodragonsden.cloud${chain}/selector/${contract}`;
 
-<div class="loading-bar" id="loadingBar"></div>
-
-<table id="transactionTable">
-    <thead>
-        <tr>
-            <th>From</th>
-            <th>To</th>
-            <th>Decoded Input</th>
-            <th>Value</th>
-            <th>Timestamp</th>
-            <th>Contract Deployed Event</th>
-            <th>Contract</th>
-            <th>Name</th>
-            <th>Symbol</th>
-            <th>Total Supply</th>
-        </tr>
-    </thead>
-    <tbody id="transactionData"></tbody>
-</table>
-
-<script>
-    const loadingBar = document.getElementById('loadingBar');
-    const tableBody = document.getElementById('transactionData');
-
-    // Function to update loading progress
-    function updateLoadingProgress(progress) {
-        loadingBar.style.width = progress + '%';
+      var xhr = new XMLHttpRequest();
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === XMLHttpRequest.DONE) {
+          if (xhr.status === 200) {
+            var data = JSON.parse(xhr.responseText);
+            // Clear previous response
+            document.getElementById('response').innerHTML = '';
+            // Display JSON response
+            document.getElementById('response').innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+          } else {
+            document.getElementById('response').innerHTML = '<p>Error fetching data. Please try again.</p>';
+          }
+        }
+      };
+      xhr.open('GET', apiUrl, true);
+      xhr.send();
     }
-
-    // Function to fetch transaction data
-    function fetchTransactionData(address) {
-        updateLoadingProgress(0); // Reset loading progress
-
-        fetch(`https://api.scan.pulsechain.com/api?module=account&action=txlist&address=${address}&sort=asc`)
-        .then(response => response.json())
-        .then(data => {
-            updateLoadingProgress(100); // Set loading progress to 100%
-
-            // Parse JSON response and generate table rows
-            const transactions = data.result;
-            
-            transactions.forEach(async transaction => {
-                const row = document.createElement('tr');
-                const isContractDeployed = !transaction.to;
-                const contractAddress = isContractDeployed ? transaction.contractAddress : '';
-                if (isContractDeployed) {
-                    const tokenInfo = await fetchTokenInfo(contractAddress);
-                    row.innerHTML = `
-                        <td>${transaction.from}</td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td>Yes</td>
-                        <td>${contractAddress}</td>
-                        <td>${tokenInfo.name}</td>
-                        <td>${tokenInfo.symbol}</td>
-                        <td>${tokenInfo.totalSupply}</td>
-                    `;
-                } else {
-                    row.innerHTML = `
-                        <td>${transaction.from}</td>
-                        <td>${transaction.to}</td>
-                        <td>${transaction.input.substring(0, 10)}</td>
-                        <td>${transaction.value}</td>
-                        <td>${new Date(transaction.timeStamp * 1000).toLocaleString()}</td>
-                        <td>No</td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                    `;
-                }
-                tableBody.appendChild(row);
-            });
-        })
-        .catch(error => {
-            console.error('Error fetching data:', error);
-            updateLoadingProgress(100); // Set loading progress to 100% in case of error
-        });
-    }
-
-    // Function to fetch token info
-    async function fetchTokenInfo(contractAddress) {
-        const response = await fetch(`https://api.scan.pulsechain.com/api?module=token&action=getToken&contractaddress=${contractAddress}`);
-        const data = await response.json();
-        return {
-            name: data.result.name,
-            symbol: data.result.symbol,
-            totalSupply: data.result.totalSupply
-        };
-    }
-
-    // Form submission handler
-    document.getElementById('addressForm').addEventListener('submit', function(event) {
-        event.preventDefault(); // Prevent default form submission
-        const address = document.getElementById('addressInput').value;
-        fetchTransactionData(address);
-    });
-</script>
-
+  </script>
 </body>
 </html>
